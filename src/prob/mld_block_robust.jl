@@ -12,7 +12,7 @@ The default number of scenarios is set to 2 with load uncertainty of ±10% and c
 """
 function solve_robust_block_mld(data::Dict{String,<:Any}, model_type::Type, solver; N::Int=2, ΔL::Float64=0.1, kwargs...)::Dict{String, Dict{String,Any}}
     data_math = PMD.iseng(data) ? transform_data_model(data) : data
-    load_scenarios = generate_load_scenarios(data_math, solver, N, ΔL)     # generate N scenarios with ±ΔL load uncertainty
+    load_scenarios = generate_load_scenarios(data_math, N, ΔL)     # generate N scenarios with ±ΔL load uncertainty
 
     return solve_robust_block_mld(data, model_type, solver, load_scenarios; kwargs...)
 end
@@ -39,37 +39,42 @@ function solve_robust_block_mld(data::Dict{String,<:Any}, model_type::Type, solv
     scenarios = [1] # start with scenario 1 corresponding to base load
     results = Dict{String, Dict{String,Any}}() # store results of each iteration to rank partitions later
     while length(scenarios)<=N && violation_indicator
-        data_all_scen = deepcopy(data)
+        data_all_scen = deepcopy(data_math)
         data_all_scen["scenarios"] = Dict("load" => Dict(scen => load_scenarios[scen] for scen in scenarios),
                                           "feasibility_check" => false)
 
         # solve outer scenario model
         results["$(scenarios)"] = solve_onm_model(data_all_scen, model_type, solver, build_robust_block_mld; multinetwork=false, ref_extensions=Function[_ref_add_scenarios!], kwargs...)
 
-        # update data with solution of variables common across all scenarios
-        _update_switch_settings!(data_all_scen, results["$(scenarios)"]["solution"])
-        _update_inverter_settings!(data_all_scen, results["$(scenarios)"]["solution"])
+        if results["$(scenarios)"]["termination_status"]==OPTIMAL
+            # update data with solution of variables common across all scenarios
+            _update_switch_settings!(data_all_scen, results["$(scenarios)"]["solution"])
+            _update_inverter_settings!(data_all_scen, results["$(scenarios)"]["solution"])
 
-        # feasibility check for remaining scenarios (inner scenario model)
-        scenario = deleteat!([1:N;], sort(scenarios))
-        if length(scenario)==0
-            violation_indicator = false
-        else
-            infeasible_scen = []
-            for scen in scenario
-                data_scen = deepcopy(data_all_scen)
-                data_scen["scenarios"] = Dict("load" => Dict(scen => load_scenarios[scen]),
-                                              "feasibility_check" => true)
-                result_scen = solve_onm_model(data_scen, model_type, solver, build_robust_block_mld; multinetwork=false, ref_extensions=Function[_ref_add_scenarios!], kwargs...)
-                if result_scen["termination_status"]!=OPTIMAL
-                    push!(infeasible_scen,scen)
+            # feasibility check for remaining scenarios (inner scenario model)
+            scenario = deleteat!([1:N;], sort(scenarios))
+            if length(scenario)==0
+                violation_indicator = false
+            else
+                infeasible_scen = []
+                for scen in scenario
+                    data_scen = deepcopy(data_all_scen)
+                    data_scen["scenarios"] = Dict("load" => Dict(scen => load_scenarios[scen]),
+                                                "feasibility_check" => true)
+                    result_scen = solve_onm_model(data_scen, model_type, solver, build_robust_block_mld; multinetwork=false, ref_extensions=Function[_ref_add_scenarios!], kwargs...)
+                    @show result_scen["termination_status"]
+                    if result_scen["termination_status"]!=OPTIMAL
+                        push!(infeasible_scen,scen)
+                    end
+                end
+                if length(infeasible_scen)>0
+                    push!(scenarios,infeasible_scen[1])
+                else
+                    violation_indicator = false
                 end
             end
-            if length(infeasible_scen)>0
-                push!(scenarios,infeasible_scen[1])
-            else
-                violation_indicator = false
-            end
+        else
+            violation_indicator = false
         end
     end
 
@@ -98,7 +103,7 @@ function build_robust_block_mld(pm::PMD.AbstractUBFModels; nw::Int=nw_id_default
     end
 
     # add variables and constraints for each scenario
-    obj_expr = Dict()
+    obj_expr = Dict{Int,JuMP.AffExpr}()
     for (scen,_) in load_uncertainty
         build_scen_block_mld(pm, scen, obj_expr)
     end
@@ -114,7 +119,7 @@ end
 
 Add each scenario variables, constraints to single-network robust mld problem using Branch Flow model
 """
-function build_scen_block_mld(pm::PMD.AbstractUBFModels, scen::Int, obj_expr::Dict{Any,Any}; nw::Int=nw_id_default, feas_chck::Bool=false)
+function build_scen_block_mld(pm::PMD.AbstractUBFModels, scen::Int, obj_expr::Dict{Int,JuMP.AffExpr}; nw::Int=nw_id_default, feas_chck::Bool=false)
     var_opts = ref(pm, :options, "variables")
     con_opts = ref(pm, :options, "constraints")
     feas_chck = ref(pm, :scenarios, "feasibility_check")
@@ -204,7 +209,6 @@ function build_scen_block_mld(pm::PMD.AbstractUBFModels, scen::Int, obj_expr::Di
     for i in ids(pm, :transformer)
         constraint_mc_transformer_power_block_on_off(pm, i; fix_taps=false)
     end
-
     !feas_chck && objective_robust_min_shed_load_block_rolling_horizon(pm, obj_expr, scen)
 end
 
@@ -215,10 +219,12 @@ end
 Generate N scenarios with ±ΔL load uncertainty around base load.
 PMD.solve_mc_opf() is solved for each scenario to check if feasible to original problem (no microgrids, all blocks energized by substation)
 """
-function generate_load_scenarios(data_math::Dict{String,<:Any}, solver, N::Int, ΔL::Float64)::Dict{Int,Dict{Any,Any}}
+function generate_load_scenarios(data::Dict{String,<:Any}, N::Int, ΔL::Float64)::Dict{Int,Dict{Any,Any}}
+    data_math = PMD.iseng(data) ? transform_data_model(data) : data
     n_l = length(data_math["load"])
     load_scenarios = Dict(scen => Dict() for scen in 1:N)
     scen = 1
+    iter = 1
     while scen<=N
         data_scen = deepcopy(data_math)
         uncertain_scen = ΔL==0 ? ones(n_l) : SB.sample((1-ΔL):(2*ΔL/n_l):(1+ΔL), n_l, replace=false)
@@ -233,6 +239,11 @@ function generate_load_scenarios(data_math::Dict{String,<:Any}, solver, N::Int, 
         end
         result = PMD.solve_mc_opf(data_scen, PMD.LPUBFDiagPowerModel, JuMP.optimizer_with_attributes(Ipopt.Optimizer,"print_level"=>0); global_keys = Set(["options", "solvers"]))
         scen = result["termination_status"]==LOCALLY_SOLVED ? (scen+1) : scen
+        iter += 1
+        if iter>=5*N
+            @warn "scenario $(scen) may be infeasible to original problem"
+            scen += 1
+        end
     end
 
     return load_scenarios
@@ -240,12 +251,12 @@ end
 
 
 """
-    generate_ranked_robust_partitions(data::Dict{String,<:Any}, results::Dict{String,<:Any})::Vector
+    update_ranked_robust_partitions(data::Dict{String,<:Any}, results::Dict{String,<:Any})::Vector
 
 Generate ranked robust partitions based on objective and mip_gap.
 Higher objective means the partition is more robust to uncertainty.
 """
-function generate_ranked_robust_partitions(data::Dict{String,<:Any}, results::Dict{String,<:Any})::Vector
+function update_ranked_robust_partitions(data::Dict{String,<:Any}, results::Dict{String,<:Any})::Vector
     sorted_results = sort(collect(keys(results)); by=x-> 100/(get(results[x], "objective", Inf)) + get(results[x], "mip_gap", 0.0))
 
     configs = Set()
