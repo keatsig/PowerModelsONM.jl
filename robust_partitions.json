@@ -1,0 +1,359 @@
+[
+  {
+    "rank": 1,
+    "score": 5.128,
+    "grid_forming_devices": [
+      "voltage_source.source"
+    ],
+    "slack_buses": [
+      "voltage_source.source"
+    ],
+    "configuration": {
+      "switch.701702": "1.0",
+      "switch.671700": "1.0",
+      "switch.800801": "1.0",
+      "switch.671692": "1.0",
+      "switch.703800": "1.0"
+    }
+  },
+  {
+    "rank": 2,
+    "score": 5.488,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "voltage_source.source",
+      "solar.pv_mg1a"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "voltage_source.source",
+      "bus.703"
+    ],
+    "configuration": {
+      "switch.701702": "0",
+      "switch.671700": "1.0",
+      "switch.800801": "1.0",
+      "switch.671692": "1.0",
+      "switch.703800": "0"
+    }
+  },
+  {
+    "rank": 3,
+    "score": 5.488,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "voltage_source.source"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "voltage_source.source"
+    ],
+    "configuration": {
+      "switch.801675": "0",
+      "switch.701702": "1.0",
+      "switch.671700": "1.0",
+      "switch.800801": "0",
+      "switch.671692": "1.0",
+      "switch.703800": "0"
+    }
+  },
+  {
+    "rank": 4,
+    "score": 5.488,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "voltage_source.source"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "voltage_source.source"
+    ],
+    "configuration": {
+      "switch.701702": "1.0",
+      "switch.671700": "1.0",
+      "switch.800801": "0",
+      "switch.671692": "1.0",
+      "switch.703800": "0"
+    }
+  },
+  {
+    "rank": 5,
+    "score": 5.488,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "voltage_source.source",
+      "solar.pv_mg1a"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "voltage_source.source",
+      "bus.703"
+    ],
+    "configuration": {
+      "switch.701702": "0",
+      "switch.671700": "1.0",
+      "switch.800801": "0",
+      "switch.671692": "1.0",
+      "switch.703800": "0"
+    }
+  },
+  {
+    "rank": 6,
+    "score": 5.508,
+    "grid_forming_devices": [
+      "storage.battery_mg1b",
+      "voltage_source.source",
+      "solar.pv_mg1a"
+    ],
+    "slack_buses": [
+      "bus.700",
+      "voltage_source.source",
+      "bus.703"
+    ],
+    "configuration": {
+      "switch.701702": "0",
+      "switch.671700": "0",
+      "switch.800801": "1.0",
+      "switch.671692": "1.0",
+      "switch.703800": "1.0"
+    }
+  },
+  {
+    "rank": 7,
+    "score": 5.528,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "storage.battery_mg1b",
+      "voltage_source.source",
+      "solar.pv_mg1a"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "bus.700",
+      "voltage_source.source",
+      "bus.703"
+    ],
+    "configuration": {
+      "switch.701702": "0",
+      "switch.671700": "0",
+      "switch.800801": "1.0",
+      "switch.671692": "1.0",
+      "switch.703800": "0"
+    }
+  },
+  {
+    "rank": 8,
+    "score": 5.528,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "storage.battery_mg1b",
+      "voltage_source.source",
+      "solar.pv_mg1a"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "bus.700",
+      "voltage_source.source",
+      "bus.703"
+    ],
+    "configuration": {
+      "switch.701702": "0",
+      "switch.671700": "0",
+      "switch.800801": "0",
+      "switch.671692": "1.0",
+      "switch.703800": "0"
+    }
+  },
+  {
+    "rank": 9,
+    "score": 6.178,
+    "grid_forming_devices": [
+      "voltage_source.source"
+    ],
+    "slack_buses": [
+      "voltage_source.source"
+    ],
+    "configuration": {
+      "switch.801675": "0",
+      "switch.701702": "1.0",
+      "switch.671700": "1.0",
+      "switch.800801": "1.0",
+      "switch.671692": "0",
+      "switch.703800": "1.0"
+    }
+  },
+  {
+    "rank": 10,
+    "score": 6.538,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "voltage_source.source"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "voltage_source.source"
+    ],
+    "configuration": {
+      "switch.801675": "0",
+      "switch.701702": "1.0",
+      "switch.671700": "1.0",
+      "switch.800801": "0",
+      "switch.671692": "0",
+      "switch.703800": "1.0"
+    }
+  },
+  {
+    "rank": 11,
+    "score": 6.558,
+    "grid_forming_devices": [
+      "voltage_source.source",
+      "solar.pv_mg1a"
+    ],
+    "slack_buses": [
+      "voltage_source.source",
+      "bus.703"
+    ],
+    "configuration": {
+      "switch.701702": "1.0",
+      "switch.671700": "0",
+      "switch.800801": "1.0",
+      "switch.671692": "0",
+      "switch.703800": "1.0"
+    }
+  },
+  {
+    "rank": 12,
+    "score": 6.558,
+    "grid_forming_devices": [
+      "storage.battery_mg1b",
+      "voltage_source.source",
+      "solar.pv_mg1a"
+    ],
+    "slack_buses": [
+      "bus.700",
+      "voltage_source.source",
+      "bus.703"
+    ],
+    "configuration": {
+      "switch.701702": "0",
+      "switch.671700": "0",
+      "switch.800801": "1.0",
+      "switch.671692": "0",
+      "switch.703800": "1.0"
+    }
+  },
+  {
+    "rank": 13,
+    "score": 6.558,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "voltage_source.source",
+      "solar.pv_mg1a"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "voltage_source.source",
+      "bus.703"
+    ],
+    "configuration": {
+      "switch.701702": "1.0",
+      "switch.671700": "0",
+      "switch.800801": "0",
+      "switch.671692": "0",
+      "switch.703800": "0"
+    }
+  },
+  {
+    "rank": 14,
+    "score": 6.558,
+    "grid_forming_devices": [
+      "storage.battery_mg1b",
+      "voltage_source.source"
+    ],
+    "slack_buses": [
+      "bus.700",
+      "voltage_source.source"
+    ],
+    "configuration": {
+      "switch.801675": "0",
+      "switch.701702": "1.0",
+      "switch.671700": "0",
+      "switch.800801": "1.0",
+      "switch.671692": "0",
+      "switch.703800": "1.0"
+    }
+  },
+  {
+    "rank": 15,
+    "score": 6.578,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "storage.battery_mg1b",
+      "voltage_source.source",
+      "solar.pv_mg1a"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "bus.700",
+      "voltage_source.source",
+      "bus.703"
+    ],
+    "configuration": {
+      "switch.701702": "0",
+      "switch.671700": "0",
+      "switch.800801": "1.0",
+      "switch.671692": "0",
+      "switch.703800": "0"
+    }
+  },
+  {
+    "rank": 16,
+    "score": 6.578,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "storage.battery_mg1b",
+      "voltage_source.source",
+      "solar.pv_mg1a"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "bus.700",
+      "voltage_source.source",
+      "bus.703"
+    ],
+    "configuration": {
+      "switch.701702": "0",
+      "switch.671700": "0",
+      "switch.800801": "0",
+      "switch.671692": "0",
+      "switch.703800": "0"
+    }
+  },
+  {
+    "rank": 17,
+    "score": 6.8612,
+    "grid_forming_devices": [
+      "storage.battery_mg1c",
+      "voltage_source.source"
+    ],
+    "slack_buses": [
+      "bus.801",
+      "voltage_source.source"
+    ],
+    "configuration": {
+      "switch.801675": "0",
+      "switch.701702": "1.0",
+      "switch.671700": "1.0",
+      "switch.800801": "0",
+      "switch.671692": "0.0",
+      "switch.703800": "1.0"
+    }
+  },
+  {
+    "rank": 18,
+    "score": null,
+    "grid_forming_devices": [],
+    "slack_buses": [],
+    "configuration": {}
+  }
+]

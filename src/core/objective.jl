@@ -334,52 +334,12 @@ function objective_mc_min_storage_utilization(pm::AbstractUnbalancedPowerModel)
 end
 
 
-raw"""
-    objective_robust_partitions(pm::AbstractUnbalancedPowerModel)
-
-Minimum block load shed objective for robust partition problem.
-
-```math
-\begin{align*}
-\mbox{minimize: } & \\
-& \sum_{\substack{b \in B,t \in T}} W^{bl}_{b,t} \left(1 - z^{bl}_{b,t} \right) \\
-& + \sum_{\substack{e \in E,t \in T}} \epsilon^{ub}_{e} - \epsilon_{e,t} \\
-& + \sum_{\substack{g \in G,t \in T}} f_1 P_{g,t} + f_0
-\end{align*}```
-
-"""
-function objective_robust_partitions(pm::AbstractUnbalancedPowerModel)
-    total_energy_ub = sum(Float64[strg["energy_rating"] for (n,nw_ref) in nws(pm) for (i,strg) in nw_ref[:storage]])
-    total_pmax = sum(Float64[all(.!isfinite.(gen["pmax"])) ? 0.0 : sum(gen["pmax"][isfinite.(gen["pmax"])]) for (n,nw_ref) in nws(pm) for (i, gen) in nw_ref[:gen]])
-
-    total_energy_ub = total_energy_ub <= 1.0 ? 1.0 : total_energy_ub
-    total_pmax = total_pmax <= 1.0 ? 1.0 : total_pmax
-
-    obj_opts = Dict(n=>ref(pm, n, :options, "objective") for n in nw_ids(pm))
-
-    if first(obj_opts).second["disable-load-block-weight-cost"]
-        block_weights = Dict(n => Dict(i => 1.0 for i in ids(pm, n, :blocks)) for n in nw_ids(pm))
-    else
-        block_weights = Dict(n => ref(pm, n, :block_weights) for n in nw_ids(pm))
-    end
-
-    JuMP.@objective(pm.model, Min,
-        sum(
-            sum( block_weights[n][i] * Int(!obj_opts[n]["disable-load-block-shed-cost"]) * (1-var(pm, n, :z_block, i)) for (i,block) in nw_ref[:blocks])
-            + sum( Int(!obj_opts[n]["disable-storage-discharge-cost"]) * (strg["energy_rating"] - var(pm, n, :se, i)) for (i,strg) in nw_ref[:storage]) / total_energy_ub
-            + sum( Int(!obj_opts[n]["disable-generation-dispatch-cost"]) * sum(get(gen,  "cost", [0.0, 0.0])[2] * var(pm, n, :pg, i)[c] + get(gen,  "cost", [0.0, 0.0])[1] for c in  gen["connections"]) for (i,gen) in nw_ref[:gen]) / total_energy_ub
-        for (n, nw_ref) in nws(pm))
-    )
-end
-
-
 """
     objective_robust_min_shed_load_block_rolling_horizon(pm::AbstractUnbalancedPowerModel, scenarios::Vector{Int})
 
-Minimum block load shed objective (similar to objective_min_shed_load_block_rolling_horizon) for robust nld problem considering all scenarios
+Minimum block load shed objective (similar to objective_min_shed_load_block_rolling_horizon) for robust partitioning problem considering uncertainty
 """
 function objective_robust_min_shed_load_block_rolling_horizon(pm::AbstractUnbalancedPowerModel, obj_expr::Dict{Int,JuMP.AffExpr}, scen::Int)
-
     nw_id_list = sort(collect(nw_ids(pm)))
 
     for (i, n) in enumerate(nw_id_list)

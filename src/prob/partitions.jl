@@ -9,28 +9,11 @@ function generate_robust_partitions(data::Dict{String,<:Any}, contingencies::Set
         eng["time_elapsed"] = 1.0  # TODO: what should the time_elapsed be? how long do we want partitions to be robust for?
 
         results[SHA.bytes2hex(SHA.sha1(join(sort(collect(keys(state))))))] = solve_robust_partitions(eng, model_type, solver; kwargs...)
-        @show results[SHA.bytes2hex(SHA.sha1(join(sort(collect(keys(state))))))]["termination_status"]
     end
 
     return results
 end
 
-
-function generate_load_robust_partitions(data::Dict{String,<:Any}, contingencies::Set{<:Dict{String,<:Any}}, model_type::Type, solver; N=2, ΔL=0.1, kwargs...)
-    results = Dict{String,Any}()
-    load_scenarios = generate_load_scenarios(data, N, ΔL)
-    for state in contingencies
-        eng = deepcopy(data)
-        eng["switch"] = recursive_merge(get(eng, "switch", Dict{String,Any}()), state)
-
-        eng["time_elapsed"] = 1.0  # TODO: what should the time_elapsed be? how long do we want partitions to be robust for?
-        eng["switch_close_actions_ub"] = 1
-
-        results[SHA.bytes2hex(SHA.sha1(join(sort(collect(keys(state))))))] = solve_robust_block_mld(eng, model_type, solver, load_scenarios)
-    end
-
-    return results
-end
 
 """
 """

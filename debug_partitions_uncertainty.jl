@@ -2,11 +2,13 @@
 import PowerModelsONM as ONM
 import PowerModelsDistribution as PMD
 import HiGHS
+import JSON
 import JuMP
 
 ## Parse data
 onm_path = joinpath(dirname(pathof(ONM)), "..")
 eng = ONM.parse_file(joinpath(onm_path, "test/data/ieee13_feeder.dss"))
+eng["switch_close_actions_ub"] = Inf
 PMD.apply_voltage_bounds!(eng)
 math = ONM.transform_data_model(eng)
 
@@ -24,10 +26,26 @@ solver = JuMP.optimizer_with_attributes(
             "output_flag"=>false
         )
 
+## Generate contingencies
+contingencies = ONM.generate_n_minus_contingencies(eng, 6)
+
 ## Generate scenarios
 N = 5      # number of scenarios
 ΔL = 0.1   # load variability around base value
-load_scenarios = generate_load_scenarios(math, N, ΔL)
+load_scenarios = ONM.generate_load_scenarios(eng, N, ΔL)
 
-## Solve robust mld problem
-results_robust = ONM.solve_robust_block_mld(math, PMD.LPUBFDiagPowerModel, solver, load_scenarios)
+## Solve robust partition problem considering uncertainty for all contingencies
+results = ONM.generate_load_robust_partitions(eng, contingencies, load_scenarios, PMD.LPUBFDiagPowerModel, solver)
+
+## Rank partitions
+robust_partitions, robust_partitions_uncertainty = ONM.generate_ranked_robust_partitions_with_uncertainty(math, results)
+
+## Save robust partitions (without considering uncertainty)
+open("robust_partitions.json", "w") do io
+    JSON.print(io, robust_partitions, 2)
+end
+
+## Save robust partitions (considering uncertainty)
+open("robust_partitions_uncertainty.json", "w") do io
+    JSON.print(io, robust_partitions_uncertainty, 2)
+end
