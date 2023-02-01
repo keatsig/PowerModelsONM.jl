@@ -39,7 +39,7 @@ solver = JuMP.optimizer_with_attributes(
 )
 
 ## Data Model Setup
-eng = PMD.parse_file(joinpath(onm_path, "test/data/ieee13_feeder.dss"))
+eng = PMD.parse_file(joinpath(onm_path, "test/data/ieee13_feeder1.dss"))
 
 ### Set max actions
 eng["switch_close_actions_ub"] = Inf
@@ -74,6 +74,8 @@ z_block = JuMP.@variable(
     lower_bound=0,
     upper_bound=1,
     binary=true)
+
+# JuMP.@constraint(model, z_block[5] == 0)
 
 # variable_inverter_indicator
 z_inverter = Dict(
@@ -646,7 +648,7 @@ for kk in L # color
     Φₖ[kk] = Set([map_virtual_pairs_id[kk][(kk,k′)] for k′ in filter(x->x!=kk,L)])
 end
 
-# voltage sources are always grid-forming
+# # voltage sources are always grid-forming
 for ((t,j), z_inv) in z_inverter
     if t == :gen && startswith(ref[t][j]["source_id"], "voltage_source")
         JuMP.@constraint(model, z_inv == z_block[ref[:bus_block_map][ref[t][j]["$(t)_bus"]]])
@@ -868,6 +870,7 @@ for (load_id,load) in ref[:load]
     end
 end
 
+## power balance
 for (i,bus) in ref[:bus]
     uncontrolled_shunts = Tuple{Int,Vector{Int}}[]
     controlled_shunts = Tuple{Int,Vector{Int}}[]
@@ -1066,6 +1069,21 @@ for (i,branch) in ref[:branch]
     g_sh_to = branch["g_to"]
     b_sh_fr = branch["b_fr"]
     b_sh_to = branch["b_to"]
+
+    smax = PMD._calc_branch_power_max(branch, ref[:bus][f_bus])
+    for (idx, c) in enumerate(branch_connections[f_idx])
+        if isfinite(smax[idx])
+            JuMP.@constraint(model, p[f_idx][c] >= -smax[idx]*z_block[ref[:bus_block_map][f_bus]])
+            JuMP.@constraint(model, p[f_idx][c] <=  smax[idx]*z_block[ref[:bus_block_map][f_bus]])
+        end
+    end
+    smax = PMD._calc_branch_power_max(branch, ref[:bus][t_bus])
+    for (idx, c) in enumerate(branch_connections[t_idx])
+        if isfinite(smax[idx])
+            JuMP.@constraint(model, p[t_idx][c] >= -smax[idx]*z_block[ref[:bus_block_map][t_bus]])
+            JuMP.@constraint(model, p[t_idx][c] <=  smax[idx]*z_block[ref[:bus_block_map][t_bus]])
+        end
+    end
 
     p_fr = p[f_idx]
     q_fr = q[f_idx]
@@ -1396,6 +1414,24 @@ for (trans_id,transformer) in ref[:transformer]
     tm_scale = PMD.calculate_tm_scale(transformer, ref[:bus][f_bus], ref[:bus][t_bus])
     pol = transformer["polarity"]
 
+    rate_a_fr, rate_a_to = PMD._calc_transformer_power_ub_frto(transformer, ref[:bus][f_bus], ref[:bus][t_bus])
+    for (idx,p) in enumerate(f_connections)
+        if isfinite(rate_a_fr[idx])
+            JuMP.@constraint(model, pt[f_idx][p] >= -rate_a_fr[idx]*z_block[ref[:bus_block_map][f_bus]])
+            JuMP.@constraint(model, pt[f_idx][p] <=  rate_a_fr[idx]*z_block[ref[:bus_block_map][f_bus]])
+            JuMP.@constraint(model, qt[f_idx][p] >= -rate_a_fr[idx]*z_block[ref[:bus_block_map][f_bus]])
+            JuMP.@constraint(model, qt[f_idx][p] <=  rate_a_fr[idx]*z_block[ref[:bus_block_map][f_bus]])
+        end
+    end
+    for (idx,p) in enumerate(t_connections)
+        if isfinite(rate_a_to[idx])
+            JuMP.@constraint(model, pt[t_idx][p] >= -rate_a_to[idx]*z_block[ref[:bus_block_map][t_bus]])
+            JuMP.@constraint(model, pt[t_idx][p] <=  rate_a_to[idx]*z_block[ref[:bus_block_map][t_bus]])
+            JuMP.@constraint(model, qt[t_idx][p] >= -rate_a_to[idx]*z_block[ref[:bus_block_map][t_bus]])
+            JuMP.@constraint(model, qt[t_idx][p] <=  rate_a_to[idx]*z_block[ref[:bus_block_map][t_bus]])
+        end
+    end
+
     if configuration == PMD.WYE
         tm = [tm_fixed[idx] ? tm_set[idx] : tap[trans_id][idx] for (idx,(fc,tc)) in enumerate(zip(f_connections,t_connections))]
 
@@ -1484,38 +1520,39 @@ for (trans_id,transformer) in ref[:transformer]
     end
 end
 
-### Objective
-delta_sw_state = JuMP.@variable(
-    model,
-    [i in keys(ref[:switch_dispatchable])],
-    base_name="$(i)_delta_sw_state",
-)
+# ### Objective
+# delta_sw_state = JuMP.@variable(
+#     model,
+#     [i in keys(ref[:switch_dispatchable])],
+#     base_name="$(i)_delta_sw_state",
+# )
 
-for (s,switch) in ref[:switch_dispatchable]
-    JuMP.@constraint(model, delta_sw_state[s] >=  (switch["state"] - z_switch[s]))
-    JuMP.@constraint(model, delta_sw_state[s] >= -(switch["state"] - z_switch[s]))
-end
+# for (s,switch) in ref[:switch_dispatchable]
+#     JuMP.@constraint(model, delta_sw_state[s] >=  (switch["state"] - z_switch[s]))
+#     JuMP.@constraint(model, delta_sw_state[s] >= -(switch["state"] - z_switch[s]))
+# end
 
-total_energy_ub = sum(strg["energy_rating"] for (i,strg) in ref[:storage])
-total_pmax = sum(Float64[all(.!isfinite.(gen["pmax"])) ? 0.0 : sum(gen["pmax"][isfinite.(gen["pmax"])]) for (i, gen) in ref[:gen]])
+# total_energy_ub = sum(strg["energy_rating"] for (i,strg) in ref[:storage])
+# total_pmax = sum(Float64[all(.!isfinite.(gen["pmax"])) ? 0.0 : sum(gen["pmax"][isfinite.(gen["pmax"])]) for (i, gen) in ref[:gen]])
 
-total_energy_ub = total_energy_ub <= 1.0 ? 1.0 : total_energy_ub
-total_pmax = total_pmax <= 1.0 ? 1.0 : total_pmax
+# total_energy_ub = total_energy_ub <= 1.0 ? 1.0 : total_energy_ub
+# total_pmax = total_pmax <= 1.0 ? 1.0 : total_pmax
 
-n_dispatchable_switches = length(keys(ref[:switch_dispatchable]))
-n_dispatchable_switches = n_dispatchable_switches < 1 ? 1 : n_dispatchable_switches
+# n_dispatchable_switches = length(keys(ref[:switch_dispatchable]))
+# n_dispatchable_switches = n_dispatchable_switches < 1 ? 1 : n_dispatchable_switches
 
-block_weights = ref[:block_weights]
+# block_weights = ref[:block_weights]
 
-JuMP.@objective(model, Min,
-        sum( block_weights[i] * (1-z_block[i]) for (i,block) in ref[:blocks])
-        + sum( ref[:switch_scores][l]*(1-z_switch[l]) for l in keys(ref[:switch_dispatchable]) )
-        + sum( delta_sw_state[l] for l in keys(ref[:switch_dispatchable])) / n_dispatchable_switches
-        + sum( (strg["energy_rating"] - se[i]) for (i,strg) in ref[:storage]) / total_energy_ub
-        + sum( sum(get(gen,  "cost", [0.0, 0.0])[2] * pg[i][c] + get(gen,  "cost", [0.0, 0.0])[1] for c in  gen["connections"]) for (i,gen) in ref[:gen]) / total_energy_ub
-)
+# JuMP.@objective(model, Min,
+#         sum( block_weights[i] * (1-z_block[i]) for (i,block) in ref[:blocks])
+#         + sum( ref[:switch_scores][l]*(1-z_switch[l]) for l in keys(ref[:switch_dispatchable]) )
+#         + sum( delta_sw_state[l] for l in keys(ref[:switch_dispatchable])) / n_dispatchable_switches
+#         + sum( (strg["energy_rating"] - se[i]) for (i,strg) in ref[:storage]) / total_energy_ub
+#         + sum( sum(get(gen,  "cost", [0.0, 0.0])[2] * pg[i][c] + get(gen,  "cost", [0.0, 0.0])[1] for c in  gen["connections"]) for (i,gen) in ref[:gen]) / total_energy_ub
+# )
 
 JuMP.optimize!(model);
 
 println("switch: $([JuMP.value(z_switch[i]) for i in keys(ref[:switch_dispatchable])])")
 println("block: $([JuMP.value(z_block[i]) for i in keys(ref[:blocks])])")
+println("Inverter: $([JuMP.value(z_inv[i]) for ((t,i), z_inv) in z_inverter])")

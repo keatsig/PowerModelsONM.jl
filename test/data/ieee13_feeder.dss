@@ -115,7 +115,7 @@ New Capacitor.Cap2 Bus1=611.3 phases=1 kVAR=100 kV=2.4
 !Bus 670 is the concentrated point load of the distributed load on line 632 to 671 located at 1/3 the distance from node 632
 
 !LINE DEFINITIONS
-New Line.650632    Phases=3 Bus1=RG60.1.2.3   Bus2=632.1.2.3  LineCode=mtx601 Length=2000 units=ft  normamps=800 emergamps=800
+New Line.631632    Phases=3 Bus1=631.1.2.3   Bus2=632.1.2.3  LineCode=mtx601 Length=2000 units=ft  normamps=800 emergamps=800
 New Line.632670    Phases=3 Bus1=632.1.2.3    Bus2=670.1.2.3  LineCode=mtx601 Length=667  units=ft  normamps=800 emergamps=800
 New Line.670671    Phases=3 Bus1=670.1.2.3    Bus2=671.1.2.3  LineCode=mtx601 Length=1333 units=ft  normamps=800 emergamps=800
 New Line.671680    Phases=3 Bus1=671.1.2.3    Bus2=680.1.2.3  LineCode=mtx601 Length=1000 units=ft  normamps=800 emergamps=800
@@ -129,6 +129,7 @@ New Line.684652    Phases=1 Bus1=684.1        Bus2=652.1      LineCode=mtx607 Le
 
 !SWITCH DEFINITIONS
 New Line.671692    Phases=3 Bus1=671   Bus2=692  Switch=y  r1=0 r0=0 x1=0.000 x0=0.000 c1=0.000 c0=0.000 normamps=800 emergamps=1000
+New Line.650631    Phases=3 Bus1=RG60.1.2.3   Bus2=631.1.2.3  Switch=y  enabled=n r1=0 r0=0 x1=0.000 x0=0.000 c1=0.000 c0=0.000  normamps=800 emergamps=800
 
 !MICROGRID DEFINITIONS
 New Line.671700 Phases=3 Bus1=670       Bus2=700 Switch=y  r1=0 r0=0 x1=0.000 x0=0.000 c1=0.000 c0=0.000 enabled=y
@@ -169,6 +170,11 @@ New Relay.632645 MonitoredObj=line.632645
 
 Set Voltagebases=[115, 4.16, .48]
 calcv
+
+! POINT REGULATOR CONTROLS TO REGULATOR TRANSFORMER AND SET PARAMETERS
+// new regcontrol.Reg1  transformer=Reg1 winding=2  vreg=122  band=2  ptratio=20 ctprim=700  R=3   X=9
+// new regcontrol.Reg2  transformer=Reg2 winding=2  vreg=122  band=2  ptratio=20 ctprim=700  R=3   X=9
+// new regcontrol.Reg3  transformer=Reg3 winding=2  vreg=122  band=2  ptratio=20 ctprim=700  R=3   X=9
 
 Transformer.Reg1.Taps=[1.0 1.0625]
 Transformer.Reg2.Taps=[1.0 1.0500]
