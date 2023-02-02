@@ -1,3 +1,33 @@
+"""
+    objective_robust_partition_EJ(pm::AbstractUnbalancedPowerModel, scenarios::Vector{Int})
+
+Minimum block load shed objective (similar to objective_robust_partitions) for robust partitioning problem considering uncertainty
+"""
+function objective_robust_partition_EJ(pm::AbstractUnbalancedPowerModel, obj_expr::Dict{Int,JuMP.AffExpr}, scen::Int)
+    block_demand = Dict(bl => 0.0 for bl in keys(ref(pm,:blocks)))
+    for (bl,loads) in ref(pm,:block_loads)
+        for d in loads
+            for c in 1:length(ref(pm,:load)[d]["connections"])
+                block_demand[bl] += ref(pm,:load)[d]["pd"][c]
+            end
+        end
+    end
+
+    # define the EJ metric here (loading JLD file is allowed)
+    block_vul_outage = Dict(i=>1 for (i,block) in ref(pm,:blocks))
+
+    total_load = sum(block_demand[i] * block_vul_outage[i] for (i,block) in ref(pm,:blocks))
+    # total_load = sum(block_vul_outage[i] for (i,block) in ref(pm,:blocks))
+    # total_load = sum(block_demand[i] for (i,block) in ref(pm,:blocks))
+    obj_expr[scen] = JuMP.@expression(pm.model, Min,
+            # Minimize load shed
+            sum(block_demand[i] * block_vul_outage[i] * (1-var(pm, :z_block, i)) for (i,block) in ref(pm,:blocks)) / total_load
+            # (sum(block_vul_outage[i] * (1-var(pm, :z_block, i)) for (i,block) in ref(pm,:blocks)) / total_load)
+            # sum(block_demand[i] * (1-var(pm, :z_block, i)) for (i,block) in ref(pm,:blocks)) / total_load
+    )
+end
+
+
 @doc raw"""
     objective_min_shed_load_block_rolling_horizon(pm::AbstractUnbalancedPowerModel)
 

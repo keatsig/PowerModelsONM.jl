@@ -247,7 +247,8 @@ function build_scen_block_mld(pm::PMD.AbstractUBFModels, scen::String, obj_expr:
         constraint_mc_transformer_power_block_on_off(pm, i; fix_taps=false)
     end
 
-    !feas_chck && objective_robust_min_shed_load_block_rolling_horizon(pm, obj_expr, parse(Int, scen))
+    !feas_chck && objective_robust_min_shed_load_block_rolling_horizon(pm, obj_expr, parse(Int, scen)) # objective without EJ metrics
+    # !feas_chck && objective_robust_partition_EJ(pm, obj_expr, parse(Int, scen)) # objective with EJ metrics
 end
 
 
