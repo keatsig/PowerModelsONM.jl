@@ -1,121 +1,109 @@
-using Revise, PowerModelsONM, PowerModelsDistribution
 import PowerModelsONM as ONM
 import PowerModelsDistribution as PMD
 import InfrastructureModels as IM
 import JuMP
 import Ipopt
 import HiGHS
-import Cbc
 import LinearAlgebra
 import StatsBase as SB
 import JLD
-
 PMD.silence!()
+
+## build model and initialize constant parameters
 onm_path = joinpath(dirname(pathof(ONM)), "..")
 case_file = joinpath(onm_path, "test/data/ieee13_feeder.dss")
 
-## build model and initialize constant parameters
-function build_model(case_file::String)
-    global eng = PMD.parse_file(case_file)
-    eng["switch_close_actions_ub"] = Inf
-    # PMD.apply_voltage_bounds!(eng)
-    settings = ONM.parse_settings("test/data/ieee13_settings.json")
-    settings["options"]["data"]["switch-close-actions-ub"] = Inf
-    eng = ONM.apply_settings(eng, settings)
-    eng["time_elapsed"] = 0.0
+global eng = PMD.parse_file(case_file)
+eng["switch_close_actions_ub"] = Inf
+PMD.apply_voltage_bounds!(eng)
+global math = ONM.transform_data_model(eng)
+global ref = IM.build_ref(
+    math,
+    PMD.ref_add_core!,
+    union(ONM._default_global_keys, PMD._pmd_math_global_keys),
+    PMD.pmd_it_name;
+    ref_extensions=ONM._default_ref_extensions
+)[:it][:pmd][:nw][IM.nw_id_default]
 
-    global math = ONM.transform_data_model(eng)
+# branch parameters
+global branch_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_branch] for ((l,i,j), connections) in entry)
 
-    global ref = IM.build_ref(
-        math,
-        PMD.ref_add_core!,
-        union(ONM._default_global_keys, PMD._pmd_math_global_keys),
-        PMD.pmd_it_name;
-        ref_extensions=ONM._default_ref_extensions
-    )[:it][:pmd][:nw][IM.nw_id_default]
+# switch parameters
+global switch_arc_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_switch] for ((l,i,j), connections) in entry)
+global switch_close_actions_ub = ref[:switch_close_actions_ub]
 
-    # branch parameters
-    global branch_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_branch] for ((l,i,j), connections) in entry)
+# transformer parameters
+global transformer_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_transformer] for ((l,i,j), connections) in entry)
+global p_oltc_ids = [id for (id,trans) in ref[:transformer] if !all(trans["tm_fix"])]
 
-    # switch parameters
-    global switch_arc_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_switch] for ((l,i,j), connections) in entry)
-    global switch_close_actions_ub = ref[:switch_close_actions_ub]
+# load parameters
+global load_wye_ids = [id for (id, load) in ref[:load] if load["configuration"]==PMD.WYE]
+global load_del_ids = [id for (id, load) in ref[:load] if load["configuration"]==PMD.DELTA]
+global load_cone_ids = [id for (id, load) in ref[:load] if PMD._check_load_needs_cone(load)]
+global load_connections = Dict{Int,Vector{Int}}(id => load["connections"] for (id,load) in ref[:load])
 
-    # transformer parameters
-    global transformer_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_transformer] for ((l,i,j), connections) in entry)
-    global p_oltc_ids = [id for (id,trans) in ref[:transformer] if !all(trans["tm_fix"])]
-
-    # load parameters
-    global load_wye_ids = [id for (id, load) in ref[:load] if load["configuration"]==PMD.WYE]
-    global load_del_ids = [id for (id, load) in ref[:load] if load["configuration"]==PMD.DELTA]
-    global load_cone_ids = [id for (id, load) in ref[:load] if PMD._check_load_needs_cone(load)]
-    global load_connections = Dict{Int,Vector{Int}}(id => load["connections"] for (id,load) in ref[:load])
-
-    # grid-forming inverter parameters
-    global L = Set(keys(ref[:blocks]))
-    global map_id_pairs = Dict(id => (ref[:bus_block_map][sw["f_bus"]],ref[:bus_block_map][sw["t_bus"]]) for (id,sw) in ref[:switch])
-    global Φₖ = Dict(k => Set() for k in L)
-    global map_virtual_pairs_id = Dict(k=>Dict() for k in L)
-    for kk in L # color
-        touched = Set()
-        ab = 1
-        for k in sort(collect(L)) # fr block
-            for k′ in sort(collect(filter(x->x!=k,L))) # to block
-                if (k,k′) ∉ touched
-                    map_virtual_pairs_id[kk][(k,k′)] = map_virtual_pairs_id[kk][(k′,k)] = ab
-                    push!(touched, (k,k′), (k′,k))
-                    ab += 1
-                end
+# grid-forming inverter parameters
+global L = Set(keys(ref[:blocks]))
+global map_id_pairs = Dict(id => (ref[:bus_block_map][sw["f_bus"]],ref[:bus_block_map][sw["t_bus"]]) for (id,sw) in ref[:switch])
+global Φₖ = Dict(k => Set() for k in L)
+global map_virtual_pairs_id = Dict(k=>Dict() for k in L)
+for kk in L # color
+    touched = Set()
+    ab = 1
+    for k in sort(collect(L)) # fr block
+        for k′ in sort(collect(filter(x->x!=k,L))) # to block
+            if (k,k′) ∉ touched
+                map_virtual_pairs_id[kk][(k,k′)] = map_virtual_pairs_id[kk][(k′,k)] = ab
+                push!(touched, (k,k′), (k′,k))
+                ab += 1
             end
         end
-        Φₖ[kk] = Set([map_virtual_pairs_id[kk][(kk,k′)] for k′ in filter(x->x!=kk,L)])
     end
-
-    # storage parameters
-    global storage_inj_lb, storage_inj_ub
-    storage_inj_lb, storage_inj_ub = PMD.ref_calc_storage_injection_bounds(ref[:storage], ref[:bus])
-
-    # topology parameters
-    global _N₀ = collect(keys(ref[:blocks]))
-    global _L₀ = ref[:block_pairs]
-    global virtual_iᵣ = maximum(_N₀)+1
-    global _N = [_N₀..., virtual_iᵣ]
-    global iᵣ = [virtual_iᵣ]
-    global _L = [_L₀..., [(virtual_iᵣ, n) for n in _N₀]...]
-    global _L′ = union(_L, Set([(j,i) for (i,j) in _L]))
-
-    # objective parameters
-    global total_energy_ub = sum(strg["energy_rating"] for (i,strg) in ref[:storage])
-    global total_pmax = sum(Float64[all(.!isfinite.(gen["pmax"])) ? 0.0 : sum(gen["pmax"][isfinite.(gen["pmax"])]) for (i, gen) in ref[:gen]])
-    global total_energy_ub = total_energy_ub <= 1.0 ? 1.0 : total_energy_ub
-    global total_pmax = total_pmax <= 1.0 ? 1.0 : total_pmax
-    global n_dispatchable_switches = length(keys(ref[:switch_dispatchable]))
-    global n_dispatchable_switches = n_dispatchable_switches < 1 ? 1 : n_dispatchable_switches
-    global block_weights = ref[:block_weights]
-
-    # solver instance setup
-    global solver = JuMP.optimizer_with_attributes(
-        HiGHS.Optimizer,
-        "presolve"=>"on",
-        "primal_feasibility_tolerance"=>1e-6,
-        "dual_feasibility_tolerance"=>1e-6,
-        "mip_feasibility_tolerance"=>1e-4,
-        "mip_rel_gap"=>1e-4,
-        "small_matrix_value"=>1e-8,
-        "allow_unbounded_or_infeasible"=>true,
-        "log_to_console"=>false,
-        "output_flag"=>false
-    )
-
+    Φₖ[kk] = Set([map_virtual_pairs_id[kk][(kk,k′)] for k′ in filter(x->x!=kk,L)])
 end
 
+# storage parameters
+global storage_inj_lb, storage_inj_ub
+storage_inj_lb, storage_inj_ub = PMD.ref_calc_storage_injection_bounds(ref[:storage], ref[:bus])
+
+# topology parameters
+global _N₀ = collect(keys(ref[:blocks]))
+global _L₀ = ref[:block_pairs]
+global virtual_iᵣ = maximum(_N₀)+1
+global _N = [_N₀..., virtual_iᵣ]
+global iᵣ = [virtual_iᵣ]
+global _L = [_L₀..., [(virtual_iᵣ, n) for n in _N₀]...]
+global _L′ = union(_L, Set([(j,i) for (i,j) in _L]))
+
+# objective parameters
+global total_energy_ub = sum(strg["energy_rating"] for (i,strg) in ref[:storage])
+global total_pmax = sum(Float64[all(.!isfinite.(gen["pmax"])) ? 0.0 : sum(gen["pmax"][isfinite.(gen["pmax"])]) for (i, gen) in ref[:gen]])
+global total_energy_ub = total_energy_ub <= 1.0 ? 1.0 : total_energy_ub
+global total_pmax = total_pmax <= 1.0 ? 1.0 : total_pmax
+global n_dispatchable_switches = length(keys(ref[:switch_dispatchable]))
+global n_dispatchable_switches = n_dispatchable_switches < 1 ? 1 : n_dispatchable_switches
+global block_weights = ref[:block_weights]
+
+# solver instance setup
+global solver = JuMP.optimizer_with_attributes(
+    HiGHS.Optimizer,
+    "presolve"=>"on",
+    "primal_feasibility_tolerance"=>1e-6,
+    "dual_feasibility_tolerance"=>1e-6,
+    "mip_feasibility_tolerance"=>1e-4,
+    "mip_rel_gap"=>1e-4,
+    "small_matrix_value"=>1e-8,
+    "allow_unbounded_or_infeasible"=>true,
+    "log_to_console"=>false,
+    "output_flag"=>false
+)
 
 ## setup scenario model, solve and check feasibility
 function solve_model(N_scen::Int, ΔL::Float64)
 
     # Generate scenarios
-    # load_factor = generate_load_scenarios(math, N_scen, ΔL)
-    load_factor = JLD.load("load_factor.jld")["load_factor"]
+    load_factor = generate_load_scenarios(math, N_scen, ΔL)
+    # load_factor = JLD.load("load_factor.jld")["load_factor"]
 
     # create empty model and generate common variables
     model = JuMP.Model()
@@ -126,7 +114,7 @@ function solve_model(N_scen::Int, ΔL::Float64)
     # setup and solve model adding one scenario in each iteration
     all_var_scen = Dict(scen=> Dict() for scen=1:N_scen)
     all_var_common_soln = Dict()
-    scenarios = [2]
+    scenarios = [1]
     idx = 0
     viol_ind = true
     while length(scenarios)<=N_scen && viol_ind
@@ -156,7 +144,7 @@ function solve_model(N_scen::Int, ΔL::Float64)
         # print output
         obj_val = []
         for scen in scenarios
-            obj_scen = sum( block_weights[i] * (1-all_var_scen[scen]["z_block"][i]) for (i,block) in ref[:blocks])-1.25* sum( ref[:switch_scores][l]*(1-all_var_common["z_switch"][l]) for l in keys(ref[:switch_dispatchable]) )+ sum( all_var_scen[scen]["delta_sw_state"][l] for l in keys(ref[:switch_dispatchable])) / n_dispatchable_switches+ sum( (strg["energy_rating"] - all_var_scen[scen]["se"][i]) for (i,strg) in ref[:storage]) / total_energy_ub+ sum( sum(get(gen,  "cost", [0.0, 0.0])[2] * all_var_scen[scen]["pg"][i][c] + get(gen,  "cost", [0.0, 0.0])[1] for c in  gen["connections"]) for (i,gen) in ref[:gen]) / total_energy_ub
+            obj_scen = sum( block_weights[i] * (1-all_var_scen[scen]["z_block"][i]) for (i,block) in ref[:blocks])+ sum( ref[:switch_scores][l]*(1-all_var_common["z_switch"][l]) for l in keys(ref[:switch_dispatchable]) )+ sum( all_var_scen[scen]["delta_sw_state"][l] for l in keys(ref[:switch_dispatchable])) / n_dispatchable_switches+ sum( (strg["energy_rating"] - all_var_scen[scen]["se"][i]) for (i,strg) in ref[:storage]) / total_energy_ub+ sum( sum(get(gen,  "cost", [0.0, 0.0])[2] * all_var_scen[scen]["pg"][i][c] + get(gen,  "cost", [0.0, 0.0])[1] for c in  gen["connections"]) for (i,gen) in ref[:gen]) / total_energy_ub
             push!(obj_val,round(JuMP.value(obj_scen), digits=4))
         end
         sts = string(JuMP.termination_status(model))
@@ -166,7 +154,7 @@ function solve_model(N_scen::Int, ΔL::Float64)
         # if scenario == N_scen
             for scen in scenarios
                 println("Substation pg for scenario $(scen): $([JuMP.value(all_var_scen[scen]["pg"][4][c]) for c=1:3])")
-                # println("Storage se for scenario $(scen): $([JuMP.value(all_var_scen[scen]["se"][i]) for (i,strg) in ref[:storage]])")
+                println("Storage se for scenario $(scen): $([JuMP.value(all_var_scen[scen]["se"][i]) for (i,strg) in ref[:storage]])")
                 # println("z_block for scenario $(scen): $([JuMP.value(all_var_scen[scen]["z_block"][c]) for c in keys(ref[:blocks])])")
             end
         # end
@@ -192,7 +180,6 @@ function solve_model(N_scen::Int, ΔL::Float64)
     end
 
 end
-
 
 ## generate load scenarios
 function generate_load_scenarios(data::Dict{String,<:Any}, N::Int, ΔL::Float64)
@@ -824,13 +811,12 @@ function constraint_model(model::JuMP.Model, var_scen::Dict{Any, Any}, var_commo
     for i in intersect(load_wye_ids, load_cone_ids)
         load = ref[:load][i]
         load_scen = deepcopy(load)
-        load_scen["pd"] = load["pd"]*load_factor_scen["$i"]
-        load_scen["qd"] = load["qd"]*load_factor_scen["$i"]
+        load_scen["pd"] = load["pd"]*load_factor_scen[i]
+        load_scen["qd"] = load["qd"]*load_factor_scen[i]
         bus = ref[:bus][load["load_bus"]]
         pmin, pmax, qmin, qmax = PMD._calc_load_pq_bounds(load_scen, bus)
 
         for (idx,c) in enumerate(load_connections[i])
-            @show qmin[idx], qmax[idx]
             PMD.set_lower_bound(pd[i][c], pmin[idx])
             PMD.set_upper_bound(pd[i][c], pmax[idx])
             PMD.set_lower_bound(qd[i][c], qmin[idx])
@@ -1021,8 +1007,8 @@ function constraint_model(model::JuMP.Model, var_scen::Dict{Any, Any}, var_commo
         bus = ref[:bus][bus_id]
         Td = [1 -1 0; 0 1 -1; -1 0 1]
         load_scen = deepcopy(load)
-        load_scen["pd"] = load["pd"]*load_factor_scen["$(load_id)"]
-        load_scen["qd"] = load["qd"]*load_factor_scen["$(load_id)"]
+        load_scen["pd"] = load["pd"]*load_factor_scen[load_id]
+        load_scen["qd"] = load["qd"]*load_factor_scen[load_id]
         a, alpha, b, beta = PMD._load_expmodel_params(load_scen, bus)
         pd0 = load_scen["pd"]
         qd0 = load_scen["qd"]

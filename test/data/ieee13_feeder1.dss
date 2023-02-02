@@ -85,10 +85,10 @@ New LoadShape.microgrid1d interval=1 npts=8 useactual=no mult=(0.4, 0.4, 0.4, 1.
 New LoadShape.pvdaily interval=1 npts=8 useactual=no mult=(0, 0, 0.4, 1.0, 0.8, 0.3, 0, 0)
 
 !LOAD DEFINITIONS
-// !New Load.671 Bus1=671.1.2.3  Phases=3 Conn=Delta Model=1 kV=4.16   kW=1155 kvar=660 vminpu=0.6 vmaxpu=1.4
-// New Load.671_1 Bus1=671.1  Phases=1 Conn=Wye Model=1 kV=4.16   kW=385 kvar=220 vminpu=0.6 vmaxpu=1.4
-// New Load.671_2 Bus1=671.2  Phases=1 Conn=Wye Model=1 kV=4.16   kW=385 kvar=220 vminpu=0.6 vmaxpu=1.4
-// New Load.671_3 Bus1=671.3  Phases=1 Conn=Wye Model=1 kV=4.16   kW=385 kvar=220 vminpu=0.6 vmaxpu=1.4
+!New Load.671 Bus1=671.1.2.3  Phases=3 Conn=Delta Model=1 kV=4.16   kW=1155 kvar=660 vminpu=0.6 vmaxpu=1.4
+New Load.671_1 Bus1=671.1  Phases=1 Conn=Wye Model=1 kV=4.16   kW=385 kvar=220 vminpu=0.6 vmaxpu=1.4
+New Load.671_2 Bus1=671.2  Phases=1 Conn=Wye Model=1 kV=4.16   kW=385 kvar=220 vminpu=0.6 vmaxpu=1.4
+New Load.671_3 Bus1=671.3  Phases=1 Conn=Wye Model=1 kV=4.16   kW=385 kvar=220 vminpu=0.6 vmaxpu=1.4
 New Load.634a Bus1=634.1     Phases=1 Conn=Wye  Model=1 kV=0.277  kW=160   kvar=110 vminpu=0.6 vmaxpu=1.4
 New Load.634b Bus1=634.2     Phases=1 Conn=Wye  Model=1 kV=0.277  kW=120   kvar=90 vminpu=0.6 vmaxpu=1.4
 New Load.634c Bus1=634.3     Phases=1 Conn=Wye  Model=1 kV=0.277  kW=120   kvar=90 vminpu=0.6 vmaxpu=1.4
@@ -96,17 +96,22 @@ New Load.645 Bus1=645.2       Phases=1 Conn=Wye  Model=1 kV=2.4      kW=170   kv
 !New Load.646 Bus1=646.2.3    Phases=1 Conn=Delta Model=2 kV=4.16    kW=230   kvar=132 vminpu=0.6 vmaxpu=1.4
 New Load.646_2 Bus1=646.2    Phases=1 Conn=Wye Model=2 kV=4.16    kW=115   kvar=66 vminpu=0.6 vmaxpu=1.4
 New Load.646_3 Bus1=646.3    Phases=1 Conn=Wye Model=2 kV=4.16    kW=115   kvar=66 vminpu=0.6 vmaxpu=1.4
-// !New Load.692 Bus1=692.3.1    Phases=1 Conn=Delta Model=5 kV=4.16    kW=170   kvar=151 vminpu=0.6 vmaxpu=1.4
-// New Load.692_3 Bus1=692.3    Phases=1 Conn=Wye Model=2 kV=4.16    kW=85   kvar=75.5 vminpu=0.6 vmaxpu=1.4 daily=microgrid1d
-// New Load.692_1 Bus1=692.1    Phases=1 Conn=Wye Model=2 kV=4.16    kW=85   kvar=75.5 vminpu=0.6 vmaxpu=1.4 daily=microgrid1d
+!New Load.692 Bus1=692.3.1    Phases=1 Conn=Delta Model=5 kV=4.16    kW=170   kvar=151 vminpu=0.6 vmaxpu=1.4
+New Load.692_3 Bus1=692.3    Phases=1 Conn=Wye Model=2 kV=4.16    kW=85   kvar=75.5 vminpu=0.6 vmaxpu=1.4 daily=microgrid1d
+New Load.692_1 Bus1=692.1    Phases=1 Conn=Wye Model=2 kV=4.16    kW=85   kvar=75.5 vminpu=0.6 vmaxpu=1.4 daily=microgrid1d
 // New Load.675a Bus1=675.1    Phases=1 Conn=Wye  Model=1 kV=2.4  kW=485   kvar=190 vminpu=0.6 vmaxpu=1.4 daily=microgrid1d
 // New Load.675b Bus1=675.2    Phases=1 Conn=Wye  Model=1 kV=2.4  kW=68   kvar=60 vminpu=0.6 vmaxpu=1.4 daily=microgrid1d
 // New Load.675c Bus1=675.3    Phases=1 Conn=Wye  Model=1 kV=2.4  kW=290   kvar=212 vminpu=0.6 vmaxpu=1.4 daily=microgrid1d
-// New Load.611 Bus1=611.3      Phases=1 Conn=Wye  Model=5 kV=2.4  kW=170   kvar=80 vminpu=0.6 vmaxpu=1.4
-// New Load.652 Bus1=652.1      Phases=1 Conn=Wye  Model=2 kV=2.4  kW=128   kvar=86 vminpu=0.6 vmaxpu=1.4
-// New Load.670a Bus1=670.1    Phases=1 Conn=Wye  Model=1 kV=2.4  kW=17    kvar=10 vminpu=0.6 vmaxpu=1.4
-// New Load.670b Bus1=670.2    Phases=1 Conn=Wye  Model=1 kV=2.4  kW=66    kvar=38 vminpu=0.6 vmaxpu=1.4
-// New Load.670c Bus1=670.3    Phases=1 Conn=Wye  Model=1 kV=2.4  kW=117  kvar=68 vminpu=0.6 vmaxpu=1.4
+New Load.611 Bus1=611.3      Phases=1 Conn=Wye  Model=5 kV=2.4  kW=170   kvar=80 vminpu=0.6 vmaxpu=1.4
+New Load.652 Bus1=652.1      Phases=1 Conn=Wye  Model=2 kV=2.4  kW=128   kvar=86 vminpu=0.6 vmaxpu=1.4
+New Load.670a Bus1=670.1    Phases=1 Conn=Wye  Model=1 kV=2.4  kW=17    kvar=10 vminpu=0.6 vmaxpu=1.4
+New Load.670b Bus1=670.2    Phases=1 Conn=Wye  Model=1 kV=2.4  kW=66    kvar=38 vminpu=0.6 vmaxpu=1.4
+New Load.670c Bus1=670.3    Phases=1 Conn=Wye  Model=1 kV=2.4  kW=117  kvar=68 vminpu=0.6 vmaxpu=1.4
+New Load.700    Phases=3 Bus1=700.1.2.3 Conn=Wye Model=1 kv=4.16 kw=10 kvar=3 daily=microgrid1b
+New Load.701    Phases=3 Bus1=701.1.2.3 Conn=Wye Model=1 kv=4.16 kw=15 kvar=5 daily=microgrid1b
+// New Load.702    Phases=3 Bus1=702.1.2.3 conn=wye model=1 kv=4.16 kw=50 kvar=20 daily=microgrid1a
+// New Load.703    Phases=3 Bus1=703.1.2.3 conn=wye model=1 kv=4.16 kw=135 kvar=100 daily=microgrid1a
+// New Load.801 Phases=3 Bus1=801 conn=wye model=1 kv=4.16 kw=200.0 kvar=120.0 daily=microgrid1c
 
 !CAPACITOR DEFINITIONS
 // New Capacitor.Cap1 Bus1=675 phases=3 kVAR=600 kV=4.16
@@ -115,55 +120,44 @@ New Load.646_3 Bus1=646.3    Phases=1 Conn=Wye Model=2 kV=4.16    kW=115   kvar=
 !Bus 670 is the concentrated point load of the distributed load on line 632 to 671 located at 1/3 the distance from node 632
 
 !LINE DEFINITIONS
-New Line.631632    Phases=3 Bus1=631.1.2.3   Bus2=632.1.2.3  LineCode=mtx601 Length=2000 units=ft  normamps=800 emergamps=800
-// New Line.632670    Phases=3 Bus1=632.1.2.3    Bus2=670.1.2.3  LineCode=mtx601 Length=667  units=ft  normamps=800 emergamps=800
-// New Line.670671    Phases=3 Bus1=670.1.2.3    Bus2=671.1.2.3  LineCode=mtx601 Length=1333 units=ft  normamps=800 emergamps=800
-// New Line.671680    Phases=3 Bus1=671.1.2.3    Bus2=680.1.2.3  LineCode=mtx601 Length=1000 units=ft  normamps=800 emergamps=800
-New Line.632633    Phases=3 Bus1=632.1.2.3    Bus2=633.1.2.3  LineCode=mtx602 Length=500  units=ft
-New Line.632645    Phases=2 Bus1=632.3.2      Bus2=645.3.2    LineCode=mtx603 Length=500  units=ft
-New Line.645646    Phases=2 Bus1=645.3.2      Bus2=646.3.2    LineCode=mtx603 Length=300  units=ft
-// New Line.692675    Phases=3 Bus1=692.1.2.3    Bus2=675.1.2.3  LineCode=mtx606 Length=500  units=ft  normamps=800 emergamps=800
-// New Line.671684    Phases=2 Bus1=671.1.3      Bus2=684.1.3    LineCode=mtx604 Length=300  units=ft
-// New Line.684611    Phases=1 Bus1=684.3        Bus2=611.3      LineCode=mtx605 Length=300  units=ft
-// New Line.684652    Phases=1 Bus1=684.1        Bus2=652.1      LineCode=mtx607 Length=800  units=ft
-
-!SWITCH DEFINITIONS
-// New Line.671692    Phases=3 Bus1=671   Bus2=692  Switch=y  r1=0 r0=0 x1=0.000 x0=0.000 c1=0.000 c0=0.000 normamps=800 emergamps=1000
-New Line.650631    Phases=3 Bus1=RG60.1.2.3   Bus2=631.1.2.3  Switch=y  enabled=n r1=0 r0=0 x1=0.000 x0=0.000 c1=0.000 c0=0.000  normamps=800 emergamps=800
-
-!MICROGRID DEFINITIONS
-// New Line.671700 Phases=3 Bus1=670       Bus2=700 Switch=y  r1=0 r0=0 x1=0.000 x0=0.000 c1=0.000 c0=0.000 enabled=y
-// New Line.700701 Phases=3 Bus1=700.1.2.3 Bus2=701.1.2.3 LineCode=mtx601 Length=800  units=ft
-// New Load.700    Phases=3 Bus1=700.1.2.3 Conn=Wye Model=1 kv=4.16 kw=10 kvar=3 daily=microgrid1b
-// New Load.701    Phases=3 Bus1=701.1.2.3 Conn=Wye Model=1 kv=4.16 kw=15 kvar=5 daily=microgrid1b
-
-// New PVSystem.PV_mg1b  Phases=3 Bus1=700.1.2.3 kv=4.16 conn=wye irradiance=1 Pmpp=25 kva=35 pf=0.74 daily=pvdaily
-// New Storage.Battery_mg1b Phases=3 Bus1=700 kwhstored=5 kwhrated=50 kwrated=10 %idlingkw=0 %idlingkvar=0 %effcharge=100 %effdischarge=100 %charge=100 %discharge=100 %r=0 %x=0 enabled=y
-
+New Line.631632    Phases=3 Bus1=631.1.2.3   Bus2=632.1.2.3  LineCode=mtx601 Length=2000 units=ft  normamps=80000000 emergamps=80000000
+New Line.632670    Phases=3 Bus1=632.1.2.3    Bus2=670.1.2.3  LineCode=mtx601 Length=667  units=ft  normamps=80000000 emergamps=80000000
+New Line.670671    Phases=3 Bus1=670.1.2.3    Bus2=671.1.2.3  LineCode=mtx601 Length=1333 units=ft  normamps=80000000 emergamps=80000000
+New Line.671680    Phases=3 Bus1=671.1.2.3    Bus2=680.1.2.3  LineCode=mtx601 Length=1000 units=ft  normamps=80000000 emergamps=80000000
+New Line.632633    Phases=3 Bus1=632.1.2.3    Bus2=633.1.2.3  LineCode=mtx602 Length=500  units=ft  normamps=80000000 emergamps=80000000
+New Line.632645    Phases=2 Bus1=632.3.2      Bus2=645.3.2    LineCode=mtx603 Length=500  units=ft  normamps=80000000 emergamps=80000000
+New Line.645646    Phases=2 Bus1=645.3.2      Bus2=646.3.2    LineCode=mtx603 Length=300  units=ft  normamps=80000000 emergamps=80000000
+New Line.692675    Phases=3 Bus1=692.1.2.3    Bus2=675.1.2.3  LineCode=mtx606 Length=500  units=ft  normamps=80000000 emergamps=80000000
+New Line.671684    Phases=2 Bus1=671.1.3      Bus2=684.1.3    LineCode=mtx604 Length=300  units=ft  normamps=80000000 emergamps=80000000
+New Line.684611    Phases=1 Bus1=684.3        Bus2=611.3      LineCode=mtx605 Length=300  units=ft  normamps=80000000 emergamps=80000000
+New Line.684652    Phases=1 Bus1=684.1        Bus2=652.1      LineCode=mtx607 Length=800  units=ft  normamps=80000000 emergamps=80000000
+New Line.670700 Phases=3 Bus1=670       Bus2=700 Switch=y  r1=0 r0=0 x1=0.000 x0=0.000 c1=0.000 c0=0.000 enabled=y normamps=80000000 emergamps=80000000
+New Line.700701 Phases=3 Bus1=700.1.2.3 Bus2=701.1.2.3 LineCode=mtx601 Length=800  units=ft normamps=80000000 emergamps=80000000
 // New Line.701702 Phases=3 Bus1=701       Bus2=702 Switch=y  r1=0 r0=0 x1=0.000 x0=0.000 c1=0.000 c0=0.000 enabled=y
 // New Line.702703 Phases=3 Bus1=702.1.2.3 Bus2=703.1.2.3 LineCode=mtx601 Length=900 units=ft
-// New Load.702    Phases=3 Bus1=702.1.2.3 conn=wye model=1 kv=4.16 kw=50 kvar=20 daily=microgrid1a
-// New Load.703    Phases=3 Bus1=703.1.2.3 conn=wye model=1 kv=4.16 kw=135 kvar=100 daily=microgrid1a
-
-// New PVSystem.PV_mg1a  Phases=3 Bus1=703.1.2.3 kv=4.16 conn=wye irradiance=1 Pmpp=25 kva=210 pf=0.74 daily=pvdaily
-// New Storage.Battery_mg1a Phases=3 Bus1=700 kwhstored=25 kwhrated=200 kwrated=50 %idlingkw=0 %idlingkvar=0 %effcharge=100 %effdischarge=100 %charge=100 %discharge=100 %r=0 %x=0 enabled=y
-
 // New Line.703800 Phases=3 Bus1=703 Bus2=800aux Switch=y r1=0 r0=0 x1=0 x0=0 c1=0 c0=0 enabled=y  normamps=50 emergamps=50
 // New Line.800800aux Phases=3 Bus1=800aux Bus2=800 LineCode=mtx601 Length=1000 units=ft
 // New Line.800801 Phases=3 Bus1=800 Bus2=801 Switch=y r1=0 r0=0 x1=0 x0=0 c1=0 c0=0 enabled=y  normamps=50 emergamps=50
+// New Line.801675 Phases=3 Bus1=801 Bus2=675aux Switch=y r1=0 r0=0 x1=0 x0=0 c1=0.0 c0=0.0 normamps=50 emergamps=50 enabled=n  ! tie switch
+// New Line.675675aux Phases=3 Bus1=675 Bus2=675aux LineCode=mtx601 Length=15 units=mi normamps=80000000 emergamps=80000000
 
-// New Load.801 Phases=3 Bus1=801 conn=wye model=1 kv=4.16 kw=200.0 kvar=120.0 daily=microgrid1c
+!SWITCH DEFINITIONS
+New Line.671692    Phases=3 Bus1=671   Bus2=692  Switch=y  r1=0 r0=0 x1=0.000 x0=0.000 c1=0.000 c0=0.000 normamps=80000000 emergamps=80000000
+New Line.650631    Phases=3 Bus1=RG60.1.2.3   Bus2=631.1.2.3  Switch=y  enabled=n r1=0 r0=0 x1=0.000 x0=0.000 c1=0.000 c0=0.000  normamps=80000000 emergamps=80000000
 
+!MICROGRID DEFINITIONS
+New PVSystem.PV_mg1b  Phases=3 Bus1=700.1.2.3 kv=4.16 conn=wye irradiance=1 Pmpp=25 kva=35 pf=0.74 daily=pvdaily
+New Storage.Battery_mg1b Phases=3 Bus1=700 kwhstored=5 kwhrated=50 kwrated=10 %idlingkw=0 %idlingkvar=0 %effcharge=100 %effdischarge=100 %charge=100 %discharge=100 %r=0 %x=0 enabled=y
+// New PVSystem.PV_mg1a  Phases=3 Bus1=703.1.2.3 kv=4.16 conn=wye irradiance=1 Pmpp=25 kva=210 pf=0.74 daily=pvdaily
+New Storage.Battery_mg1a Phases=3 Bus1=700 kwhstored=25 kwhrated=200 kwrated=50 %idlingkw=0 %idlingkvar=0 %effcharge=100 %effdischarge=100 %charge=100 %discharge=100 %r=0 %x=0 enabled=y
 // New Storage.Battery_mg1c Phases=3 Bus1=801 kwhstored=500 kwhrated=1000 kwrated=250 %idlingkw=0 %idlingkvar=0 %effcharge=100 %effdischarge=100 %charge=100 %discharge=100 %r=0 %x=0 enabled=y
 
-// New Line.801675 Phases=3 Bus1=801 Bus2=675aux Switch=y r1=0 r0=0 x1=0 x0=0 c1=0.0 c0=0.0 normamps=50 emergamps=50 enabled=n  ! tie switch
-// New Line.675675aux Phases=3 Bus1=675 Bus2=675aux LineCode=mtx601 Length=15 units=mi normamps=800 emergamps=800
-
 // New Generator.675 Phases=3 Bus1=675 kv=2.4 kva=500 kw=500 kvar=350
+// New Generator.632 Phases=3 Bus1=632 kv=2.4 kva=0 kw=0 kvar=0
 
 // New Relay.801675 monitoredobj=line.801675
 // New Recloser.671700 monitoredobj=line.671700 phasetrip=140
-New Relay.632645 MonitoredObj=line.632645
+// New Relay.632645 MonitoredObj=line.632645
 
 // !New CapControl.cap1 Capacitor=Cap1 element=Line.692675  ptphase=3 terminal=2 type=voltage ptratio=1 ctratio=1 ONsetting=2500 OFFsetting=2540 VoltOverride=N
 // !New CapControl.cap2 Capacitor=Cap2 element=Line.684611  terminal=3 ptphase=3 type=kvar ptratio=1 ctratio=1 ONsetting=0 OFFsetting=0 VoltOverride=Y Vmin=0 Vmax=10000

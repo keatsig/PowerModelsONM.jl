@@ -158,10 +158,10 @@ end
 function solve_model()
 
     # solver instance setup
-    # solver = JuMP.optimizer_with_attributes(
-    #         Cbc.Optimizer,
-    #         "logLevel"=>1
-    # )
+    solver = JuMP.optimizer_with_attributes(
+            Cbc.Optimizer,
+            "logLevel"=>1
+    )
     solver = JuMP.optimizer_with_attributes(
         HiGHS.Optimizer,
         "presolve"=>"on",

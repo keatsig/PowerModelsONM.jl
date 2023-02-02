@@ -1,3 +1,4 @@
+##Load required packages
 import PowerModelsONM as ONM
 import PowerModelsDistribution as PMD
 import InfrastructureModels as IM
@@ -6,7 +7,7 @@ import HiGHS
 import LinearAlgebra
 PMD.silence!()
 
-### Power balance constraints
+### Function to build admittance matrices for power balance constraints
 function build_bus_shunt_matrices(ref, terminals, bus_shunts)
     ncnds = length(terminals)
     Gs = fill(0.0, ncnds, ncnds)
@@ -24,7 +25,7 @@ function build_bus_shunt_matrices(ref, terminals, bus_shunts)
     return (Gs, Bs)
 end
 
-onm_path = joinpath(dirname(pathof(ONM)), "..")
+## Solver instance
 solver = JuMP.optimizer_with_attributes(
 	HiGHS.Optimizer,
 	"presolve"=>"on",
@@ -39,28 +40,20 @@ solver = JuMP.optimizer_with_attributes(
 )
 
 ## Data Model Setup
-eng = PMD.parse_file(joinpath(onm_path, "test/data/ieee13_feeder1.dss"))
-
-### Set max actions
+onm_path = joinpath(dirname(pathof(ONM)), "..")
+eng = PMD.parse_file(joinpath(onm_path, "test/data/ieee13_feeder.dss"); transformations=[remove_line_limits!]) # remove line limits to avoid infeasible line flow bounds
 eng["switch_close_actions_ub"] = Inf
-
-### Apply voltage bounds
 PMD.apply_voltage_bounds!(eng)
-
-### Convert ENGINEERING to MATHEMATICAL Model
 math = ONM.transform_data_model(eng)
 
-### Build ref structure
+## Build ref structure
 ref = IM.build_ref(
-	math,
-	PMD.ref_add_core!,
-	union(ONM._default_global_keys, PMD._pmd_math_global_keys),
-	PMD.pmd_it_name;
-	ref_extensions=ONM._default_ref_extensions
-)[:it][:pmd][:nw][IM.nw_id_default]
-
-### Branch variables
-branch_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_branch] for ((l,i,j), connections) in entry)
+        math,
+        PMD.ref_add_core!,
+        union(ONM._default_global_keys, PMD._pmd_math_global_keys),
+        PMD.pmd_it_name;
+        ref_extensions=ONM._default_ref_extensions
+    )[:it][:pmd][:nw][IM.nw_id_default]
 
 ## JuMP Model by Hand
 model = JuMP.Model()
@@ -74,8 +67,6 @@ z_block = JuMP.@variable(
     lower_bound=0,
     upper_bound=1,
     binary=true)
-
-# JuMP.@constraint(model, z_block[5] == 0)
 
 # variable_inverter_indicator
 z_inverter = Dict(
@@ -123,6 +114,7 @@ p = Dict(
 )
 
 # p bounds
+branch_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_branch] for ((l,i,j), connections) in entry)
 for (l,i,j) in ref[:arcs_branch]
     smax = PMD._calc_branch_power_max(ref[:branch][l], ref[:bus][i])
     for (idx, c) in enumerate(branch_connections[(l,i,j)])
@@ -159,9 +151,6 @@ for (l,i,j) in ref[:arcs_branch]
     end
 end
 
-### Switch variables
-switch_arc_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_switch] for ((l,i,j), connections) in entry)
-
 # variable_mc_switch_power_real
 psw = Dict(
     Dict(
@@ -181,6 +170,7 @@ psw = Dict(
 )
 
 # _psw bounds
+switch_arc_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_switch] for ((l,i,j), connections) in entry)
 for (l,i,j) in ref[:arcs_switch]
     smax = PMD._calc_branch_power_max(ref[:switch][l], ref[:bus][i])
     for (idx, c) in enumerate(switch_arc_connections[(l,i,j)])
@@ -274,10 +264,6 @@ for i in [i for i in keys(ref[:switch]) if !(i in keys(ref[:switch_dispatchable]
     z_switch[i] = ref[:switch][i]["state"]
 end
 
-
-### Transformer variables
-transformer_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_transformer] for ((l,i,j), connections) in entry)
-
 # variable_mc_transformer_power_real
 pt = Dict(
     Dict(
@@ -297,6 +283,7 @@ pt = Dict(
 )
 
 # pt bounds
+transformer_connections = Dict((l,i,j) => connections for (bus,entry) in ref[:bus_arcs_conns_transformer] for ((l,i,j), connections) in entry)
 for arc in ref[:arcs_transformer_from]
     (l,i,j) = arc
     rate_a_fr, rate_a_to = PMD._calc_transformer_power_ub_frto(ref[:transformer][l], ref[:bus][i], ref[:bus][j])
@@ -340,9 +327,6 @@ for arc in ref[:arcs_transformer_from]
     end
 end
 
-# tap ratio transformer
-p_oltc_ids = [id for (id,trans) in ref[:transformer] if !all(trans["tm_fix"])]
-
 # variable_mc_oltc_transformer_tap
 tap = Dict(
     i => JuMP.@variable(
@@ -353,6 +337,7 @@ tap = Dict(
 )
 
 # tap bounds
+p_oltc_ids = [id for (id,trans) in ref[:transformer] if !all(trans["tm_fix"])]
 for tr_id in p_oltc_ids, p in 1:length(ref[:transformer][tr_id]["f_connections"])
     PMD.set_lower_bound(tap[tr_id][p], ref[:transformer][tr_id]["tm_lb"][p])
     PMD.set_upper_bound(tap[tr_id][p], ref[:transformer][tr_id]["tm_ub"][p])
@@ -510,7 +495,6 @@ sd_on = JuMP.@variable(model,
     upper_bound=1
 )
 
-
 #### Load variables
 load_wye_ids = [id for (id, load) in ref[:load] if load["configuration"]==PMD.WYE]
 load_del_ids = [id for (id, load) in ref[:load] if load["configuration"]==PMD.DELTA]
@@ -543,29 +527,29 @@ for (id, load) in ref[:load]
 end
 (CCdr, CCdi) = PMD.variable_mx_hermitian(model, load_del_ids, load_connections; sqrt_upper_bound=cmax, sqrt_lower_bound=cmin, name="0_CCd")
 
-# variable_mc_load_power
-for i in intersect(load_wye_ids, load_cone_ids)
-    pd[i] = JuMP.@variable(
-        model,
-        [c in load_connections[i]],
-        base_name="0_pd_$(i)"
-    )
-    qd[i] = JuMP.@variable(
-        model,
-        [c in load_connections[i]],
-        base_name="0_qd_$(i)"
-    )
+# variable_mc_load_power (uncommented because leading to tight bounds and infeasibility issues if constant current loads are present)
+# for i in intersect(load_wye_ids, load_cone_ids)
+#     pd[i] = JuMP.@variable(
+#         model,
+#         [c in load_connections[i]],
+#         base_name="0_pd_$(i)"
+#     )
+#     qd[i] = JuMP.@variable(
+#         model,
+#         [c in load_connections[i]],
+#         base_name="0_qd_$(i)"
+#     )
 
-    load = ref[:load][i]
-    bus = ref[:bus][load["load_bus"]]
-    pmin, pmax, qmin, qmax = PMD._calc_load_pq_bounds(load, bus)
-    for (idx,c) in enumerate(load_connections[i])
-        PMD.set_lower_bound(pd[i][c], pmin[idx])
-        PMD.set_upper_bound(pd[i][c], pmax[idx])
-        PMD.set_lower_bound(qd[i][c], qmin[idx])
-        PMD.set_upper_bound(qd[i][c], qmax[idx])
-    end
-end
+#     load = ref[:load][i]
+#     bus = ref[:bus][load["load_bus"]]
+#     pmin, pmax, qmin, qmax = PMD._calc_load_pq_bounds(load, bus)
+#     for (idx,c) in enumerate(load_connections[i])
+#         PMD.set_lower_bound(pd[i][c], pmin[idx])
+#         PMD.set_upper_bound(pd[i][c], pmax[idx])
+#         PMD.set_lower_bound(qd[i][c], qmin[idx])
+#         PMD.set_upper_bound(qd[i][c], qmax[idx])
+#     end
+# end
 
 # variable_mc_capacitor_switch_state
 z_cap = Dict(
@@ -827,10 +811,14 @@ for (load_id,load) in ref[:load]
             pd[load_id] = a.*_w
             qd[load_id] = b.*_w
         else
-            for (idx,c) in enumerate(load["connections"])
-                JuMP.@constraint(model, pd[load_id][c]==1/2*a[idx]*(w[bus_id][c]+1))
-                JuMP.@constraint(model, qd[load_id][c]==1/2*b[idx]*(w[bus_id][c]+1))
-            end
+            _w = w[bus_id][[c for c in load["connections"]]]
+            pd[load_id] = 1/2*a.*(_w.+1)
+            qd[load_id] = 1/2*b.*(_w.+1)
+
+            # for (idx,c) in enumerate(load["connections"])  # replaced this load model with the one above
+            #     JuMP.@constraint(model, pd[load_id][c]==1/2*a[idx]*(w[bus_id][c]+1))
+            #     JuMP.@constraint(model, qd[load_id][c]==1/2*b[idx]*(w[bus_id][c]+1))
+            # end
         end
 
         pd_bus[load_id] = pd[load_id]
@@ -870,7 +858,7 @@ for (load_id,load) in ref[:load]
     end
 end
 
-## power balance
+## power balance constraints
 for (i,bus) in ref[:bus]
     uncontrolled_shunts = Tuple{Int,Vector{Int}}[]
     controlled_shunts = Tuple{Int,Vector{Int}}[]
@@ -897,6 +885,7 @@ for (i,bus) in ref[:bus]
 
     for (l,conns) in ref[:bus_conns_load][i]
         for c in conns
+            @show IM.variable_domain(pd_bus[l][c])
             IM.relaxation_product(model, pd_bus[l][c], z_block[ref[:load_block_map][l]], pd_zblock[l][c])
             IM.relaxation_product(model, qd_bus[l][c], z_block[ref[:load_block_map][l]], qd_zblock[l][c])
         end
@@ -1070,21 +1059,6 @@ for (i,branch) in ref[:branch]
     b_sh_fr = branch["b_fr"]
     b_sh_to = branch["b_to"]
 
-    smax = PMD._calc_branch_power_max(branch, ref[:bus][f_bus])
-    for (idx, c) in enumerate(branch_connections[f_idx])
-        if isfinite(smax[idx])
-            JuMP.@constraint(model, p[f_idx][c] >= -smax[idx]*z_block[ref[:bus_block_map][f_bus]])
-            JuMP.@constraint(model, p[f_idx][c] <=  smax[idx]*z_block[ref[:bus_block_map][f_bus]])
-        end
-    end
-    smax = PMD._calc_branch_power_max(branch, ref[:bus][t_bus])
-    for (idx, c) in enumerate(branch_connections[t_idx])
-        if isfinite(smax[idx])
-            JuMP.@constraint(model, p[t_idx][c] >= -smax[idx]*z_block[ref[:bus_block_map][t_bus]])
-            JuMP.@constraint(model, p[t_idx][c] <=  smax[idx]*z_block[ref[:bus_block_map][t_bus]])
-        end
-    end
-
     p_fr = p[f_idx]
     q_fr = q[f_idx]
 
@@ -1182,6 +1156,9 @@ for (i,branch) in ref[:branch]
                 all(isfinite(b) for b in [p_lb, p_ub]) && PMD.PolyhedralRelaxations.construct_univariate_relaxation!(model, x->x^2, p_fr[idx], p_sqr_fr[idx], [p_lb, p_ub], false)
                 all(isfinite(b) for b in [q_lb, q_ub]) && PMD.PolyhedralRelaxations.construct_univariate_relaxation!(model, x->x^2, q_fr[idx], q_sqr_fr[idx], [q_lb, q_ub], false)
             end
+            for idx in findall(c_rating .< Inf)
+                JuMP.@constraint(model, p_sqr_fr[idx] + q_sqr_fr[idx] .<= w_fr[idx] * c_rating[idx]^2)
+            end
         end
 
         # constraint_mc_ampacity_to
@@ -1210,6 +1187,9 @@ for (i,branch) in ref[:branch]
                 all(isfinite(b) for b in [p_lb, p_ub]) && PMD.PolyhedralRelaxations.construct_univariate_relaxation!(model, x->x^2, p_to[idx], p_sqr_to[idx], [p_lb, p_ub], false)
                 all(isfinite(b) for b in [q_lb, q_ub]) && PMD.PolyhedralRelaxations.construct_univariate_relaxation!(model, x->x^2, q_to[idx], q_sqr_to[idx], [q_lb, q_ub], false)
             end
+        end
+        for idx in findall(c_rating .< Inf)
+            JuMP.@constraint(model, p_sqr_to[idx] + q_sqr_to[idx] .<= w_to[idx] * c_rating[idx]^2)
         end
     end
 end
@@ -1335,6 +1315,7 @@ for b in keys(ref[:blocks])
     JuMP.@constraint(model, z_block[b] <= n_gen + n_strg + n_neg_loads + sum(z_switch[s] for s in keys(ref[:block_switches]) if s in keys(ref[:switch_dispatchable])))
 end
 
+## Switch constraints
 for (i,switch) in ref[:switch]
     f_bus_id = switch["f_bus"]
     t_bus_id = switch["t_bus"]
@@ -1413,24 +1394,6 @@ for (trans_id,transformer) in ref[:transformer]
     tm_fixed = transformer["tm_fix"]
     tm_scale = PMD.calculate_tm_scale(transformer, ref[:bus][f_bus], ref[:bus][t_bus])
     pol = transformer["polarity"]
-
-    rate_a_fr, rate_a_to = PMD._calc_transformer_power_ub_frto(transformer, ref[:bus][f_bus], ref[:bus][t_bus])
-    for (idx,p) in enumerate(f_connections)
-        if isfinite(rate_a_fr[idx])
-            JuMP.@constraint(model, pt[f_idx][p] >= -rate_a_fr[idx]*z_block[ref[:bus_block_map][f_bus]])
-            JuMP.@constraint(model, pt[f_idx][p] <=  rate_a_fr[idx]*z_block[ref[:bus_block_map][f_bus]])
-            JuMP.@constraint(model, qt[f_idx][p] >= -rate_a_fr[idx]*z_block[ref[:bus_block_map][f_bus]])
-            JuMP.@constraint(model, qt[f_idx][p] <=  rate_a_fr[idx]*z_block[ref[:bus_block_map][f_bus]])
-        end
-    end
-    for (idx,p) in enumerate(t_connections)
-        if isfinite(rate_a_to[idx])
-            JuMP.@constraint(model, pt[t_idx][p] >= -rate_a_to[idx]*z_block[ref[:bus_block_map][t_bus]])
-            JuMP.@constraint(model, pt[t_idx][p] <=  rate_a_to[idx]*z_block[ref[:bus_block_map][t_bus]])
-            JuMP.@constraint(model, qt[t_idx][p] >= -rate_a_to[idx]*z_block[ref[:bus_block_map][t_bus]])
-            JuMP.@constraint(model, qt[t_idx][p] <=  rate_a_to[idx]*z_block[ref[:bus_block_map][t_bus]])
-        end
-    end
 
     if configuration == PMD.WYE
         tm = [tm_fixed[idx] ? tm_set[idx] : tap[trans_id][idx] for (idx,(fc,tc)) in enumerate(zip(f_connections,t_connections))]
@@ -1520,39 +1483,59 @@ for (trans_id,transformer) in ref[:transformer]
     end
 end
 
-# ### Objective
-# delta_sw_state = JuMP.@variable(
-#     model,
-#     [i in keys(ref[:switch_dispatchable])],
-#     base_name="$(i)_delta_sw_state",
-# )
+### Objective
+delta_sw_state = JuMP.@variable(
+    model,
+    [i in keys(ref[:switch_dispatchable])],
+    base_name="$(i)_delta_sw_state",
+)
 
-# for (s,switch) in ref[:switch_dispatchable]
-#     JuMP.@constraint(model, delta_sw_state[s] >=  (switch["state"] - z_switch[s]))
-#     JuMP.@constraint(model, delta_sw_state[s] >= -(switch["state"] - z_switch[s]))
-# end
+for (s,switch) in ref[:switch_dispatchable]
+    JuMP.@constraint(model, delta_sw_state[s] >=  (switch["state"] - z_switch[s]))
+    JuMP.@constraint(model, delta_sw_state[s] >= -(switch["state"] - z_switch[s]))
+end
 
-# total_energy_ub = sum(strg["energy_rating"] for (i,strg) in ref[:storage])
-# total_pmax = sum(Float64[all(.!isfinite.(gen["pmax"])) ? 0.0 : sum(gen["pmax"][isfinite.(gen["pmax"])]) for (i, gen) in ref[:gen]])
+total_energy_ub = length(ref[:storage])!=0 ? sum(strg["energy_rating"] for (i,strg) in ref[:storage]) : 0
+total_pmax = sum(Float64[all(.!isfinite.(gen["pmax"])) ? 0.0 : sum(gen["pmax"][isfinite.(gen["pmax"])]) for (i, gen) in ref[:gen]])
 
-# total_energy_ub = total_energy_ub <= 1.0 ? 1.0 : total_energy_ub
-# total_pmax = total_pmax <= 1.0 ? 1.0 : total_pmax
+total_energy_ub = total_energy_ub <= 1.0 ? 1.0 : total_energy_ub
+total_pmax = total_pmax <= 1.0 ? 1.0 : total_pmax
 
-# n_dispatchable_switches = length(keys(ref[:switch_dispatchable]))
-# n_dispatchable_switches = n_dispatchable_switches < 1 ? 1 : n_dispatchable_switches
+n_dispatchable_switches = length(keys(ref[:switch_dispatchable]))
+n_dispatchable_switches = n_dispatchable_switches < 1 ? 1 : n_dispatchable_switches
 
-# block_weights = ref[:block_weights]
+block_weights = ref[:block_weights]
 
-# JuMP.@objective(model, Min,
-#         sum( block_weights[i] * (1-z_block[i]) for (i,block) in ref[:blocks])
-#         + sum( ref[:switch_scores][l]*(1-z_switch[l]) for l in keys(ref[:switch_dispatchable]) )
-#         + sum( delta_sw_state[l] for l in keys(ref[:switch_dispatchable])) / n_dispatchable_switches
-#         + sum( (strg["energy_rating"] - se[i]) for (i,strg) in ref[:storage]) / total_energy_ub
-#         + sum( sum(get(gen,  "cost", [0.0, 0.0])[2] * pg[i][c] + get(gen,  "cost", [0.0, 0.0])[1] for c in  gen["connections"]) for (i,gen) in ref[:gen]) / total_energy_ub
-# )
+JuMP.@objective(model, Min,
+        sum( block_weights[i] * (1-z_block[i]) for (i,block) in ref[:blocks])
+        + sum( ref[:switch_scores][l]*(1-z_switch[l]) for l in keys(ref[:switch_dispatchable]) )
+        + sum( delta_sw_state[l] for l in keys(ref[:switch_dispatchable])) / n_dispatchable_switches
+        + sum( (strg["energy_rating"] - se[i]) for (i,strg) in ref[:storage]) / total_energy_ub
+        + sum( sum(get(gen,  "cost", [0.0, 0.0])[2] * pg[i][c] + get(gen,  "cost", [0.0, 0.0])[1] for c in  gen["connections"]) for (i,gen) in ref[:gen]) / total_energy_ub
+)
 
 JuMP.optimize!(model);
 
+## Print and check solution
+blk = Dict() # show buses in each block and block status
+for (id1,val) in ref[:blocks]
+    blk[id1] = Dict("bus"=> [math["bus"]["$id2"]["name"] for id2 in val],
+                    "status"=> JuMP.value(z_block[id1]))
+end
+inv = Dict() # show inverter names and status (1-grid forming, 0-grid following)
+for (idx,((t,i), z_inv)) in enumerate(z_inverter)
+    inv[idx] = Dict("name"=> ref[t][i]["name"],
+                  "status"=> JuMP.value(z_inv[i]))
+end
+swch = Dict() # show switch name and status (1-on, 2-off)
+for (i,val) in ref[:switch_dispatchable]
+    swch[i] = Dict("name"=> val["name"],
+                   "status"=> JuMP.value(z_switch[i]))
+end
 println("switch: $([JuMP.value(z_switch[i]) for i in keys(ref[:switch_dispatchable])])")
 println("block: $([JuMP.value(z_block[i]) for i in keys(ref[:blocks])])")
 println("Inverter: $([JuMP.value(z_inv[i]) for ((t,i), z_inv) in z_inverter])")
+
+
+
+
