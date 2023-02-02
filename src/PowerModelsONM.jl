@@ -52,6 +52,7 @@ module PowerModelsONM
 
     # Generate samples for robust partitions
     import StatsBase as SB
+    import JLD
 
     # Network Graphs
     import Graphs
