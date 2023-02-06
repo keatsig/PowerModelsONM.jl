@@ -335,9 +335,20 @@ function variable_robust_switch_state(pm::AbstractUnbalancedPowerModel; nw::Int=
         dispatchable_switches = collect(ids(pm, nw, :switch_dispatchable))
     end
 
-    state = var(pm, nw)[:switch_state] = Dict{Int,Any}(
-        l => ref(pm, nw, :switch, l, "state") for l in dispatchable_switches
+    state = Dict{Int,Any}(
+        i => ref(pm, nw, :switch, i, "state") for i in dispatchable_switches
     )
+
+    var(pm, nw)[:switch_state] = Dict{Int,Any}(
+        i => JuMP.@variable(
+            pm.model,
+            base_name="$(nw)_switch_state_$(i)",
+            binary=true,
+        ) for i in dispatchable_switches
+    )
+    for i in dispatchable_switches
+        JuMP.@constraint(pm.model, var(pm, nw, :switch_state)[i] == state[i])
+    end
 
     # create variables (constants) for 'fixed' (non-dispatchable) switches
     fixed_switches = [i for i in ids(pm, nw, :switch) if i ∉ dispatchable_switches]
